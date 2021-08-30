@@ -1,18 +1,20 @@
+#ifndef __IMPLEMENTATIONS__
 #ifdef found_hip
-#include"hip.h"
+#include"llvm-hip.h"
 #else
 #include"nohip.h"
 #endif
 
 #ifdef found_cuda
-#include"cuda.h"
+#include"llvm-cuda.h"
 #else
 #include"nocuda.h"
 #endif
 
 #ifdef found_spirv
-#include"spirv.h"
+#include"llvm-spirv.h"
 #else
 #include"nospirv.h"
 #endif
 
+#endif

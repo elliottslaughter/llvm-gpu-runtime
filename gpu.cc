@@ -1,6 +1,7 @@
 #include"implementations.h"
 #include<error.h>
 #include<stdbool.h>
+#include<llvm/IR/Module.h>
 
 void err(const char* msg){
   return error(1, 1, "%s", msg);
@@ -23,7 +24,7 @@ void initRuntime(){
   err("No gpu runtimes found, needed OpenCL with SPIRV support, HIP, or CUDA\n");
 }
 
-void* getKernel(void* bc){
+void* getKernel(llvm::Module* bc){
   switch(globalRuntime){
     case spirv: 
       return getSPIRVKernel(bc);
