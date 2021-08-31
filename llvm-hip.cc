@@ -123,7 +123,7 @@ void* launchHIPKernel(llvm::Module& m, void** args, size_t n) {
     p.second->setTailCall();
   }
 
-  m.getFunction("gtid")->eraseFromParent();
+  if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
 
   m.print(llvm::errs(), nullptr);
 

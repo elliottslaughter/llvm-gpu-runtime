@@ -214,7 +214,7 @@ const char* LLVMtoPTX(Module& m) {
     p.second->setTailCall();
   }
 
-  m.getFunction("gtid")->eraseFromParent();
+  if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
 
   m.print(llvm::errs(), nullptr);
 	
