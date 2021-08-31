@@ -1,11 +1,6 @@
-#include<stdbool.h>
-#include<dlfcn.h>
 #include<llvm/Target/TargetMachine.h>
 
-int initHIP(){ 
-  void* handle = dlopen("libhip.so", RTLD_LAZY); 
-  return handle != NULL;
-}
-void* getHIPKernel(void* bc) {return NULL;}
-void* runHIPKernel(void* kernel) {return NULL;}
-void waitHIPKernel(void* wait) {}
+void* hipManagedMalloc(size_t n);
+int initHIP();
+void* launchHIPKernel(llvm::Module& m, void** args, size_t n); 
+void waitHIPKernel(void* wait); 

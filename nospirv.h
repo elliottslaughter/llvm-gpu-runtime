@@ -1,7 +1,7 @@
 #include<stdlib.h>
 #include<stdbool.h>
+#include<llvm/IR/Module.h>
 
 bool initSPIRV(){ return false; }
-void* getSPIRVKernel(void* bc) {return NULL;}
-void* runSPIRVKernel(void* kernel) {return NULL;}
+void* launchSPIRVKernel(llvm::Module& kernel, void** args, size_t n) {return NULL;}
 void waitSPIRVKernel(void* wait) {}

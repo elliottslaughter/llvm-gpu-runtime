@@ -17,6 +17,5 @@ bool initSPIRV(){
   dlclose(spirvHandle); 
   return res;
 }
-void* getSPIRVKernel(void* bc) {return NULL;}
-void* runSPIRVKernel(void* kernel) {return NULL;}
+void* launchSPIRVKernel(void* kernel) {return NULL;}
 void waitSPIRVKernel(void* wait) {}

@@ -19,24 +19,22 @@
 
 CUcontext context;
 
-// TODO: These globals are problematic and implementation dependent.
-void* handle = dlopen("libcuda.so", RTLD_LAZY); 
-#define tryLoad(name) decltype(name)* name##_p = (decltype(name)*)dlsym(handle, #name)
-tryLoad(cuInit); 
-tryLoad(cuStreamCreate); 
-tryLoad(cuStreamDestroy_v2); 
-tryLoad(cuStreamSynchronize); 
-tryLoad(cuLaunchKernel); 
-tryLoad(cuDeviceGet); 
-tryLoad(cuGetErrorName); 
-tryLoad(cuModuleLoadDataEx); 
-tryLoad(cuModuleGetFunction); 
-tryLoad(cuModuleUnload); 
-tryLoad(cuCtxCreate_v2); 
-tryLoad(cuCtxDestroy_v2); 
-tryLoad(cuCtxSetCurrent); 
-
-cudaStream_t *pStream; 
+#define declare(name) decltype(name)* name##_p = NULL; 
+#define tryLoad(name) name##_p = (decltype(name)*)dlsym(handle, #name)
+void* handle = NULL; 
+declare(cuInit); 
+declare(cuStreamCreate); 
+declare(cuStreamDestroy_v2); 
+declare(cuStreamSynchronize); 
+declare(cuLaunchKernel); 
+declare(cuDeviceGet); 
+declare(cuGetErrorName); 
+declare(cuModuleLoadDataEx); 
+declare(cuModuleGetFunction); 
+declare(cuModuleUnload); 
+declare(cuCtxCreate_v2); 
+declare(cuCtxDestroy_v2); 
+declare(cuCtxSetCurrent); 
 
 using namespace llvm; 
 
@@ -60,9 +58,31 @@ using namespace llvm;
         }                                                                \
     } while(0)
 
+void* cudaManagedMalloc(size_t n){
+	void* res;
+	if(cudaMallocManaged(&res, n) != cudaSuccess) printf("cuda malloc failed\n");
+	return res;
+}
+
 bool initCUDA(){
+	if(handle) return true; 
+	handle = dlopen("libcuda.so", RTLD_LAZY); 
+	tryLoad(cuInit); 
+	tryLoad(cuStreamCreate); 
+	tryLoad(cuStreamDestroy_v2); 
+	tryLoad(cuStreamSynchronize); 
+	tryLoad(cuLaunchKernel); 
+	tryLoad(cuDeviceGet); 
+	tryLoad(cuGetErrorName); 
+	tryLoad(cuModuleLoadDataEx); 
+	tryLoad(cuModuleGetFunction); 
+	tryLoad(cuModuleUnload); 
+	tryLoad(cuCtxCreate_v2); 
+	tryLoad(cuCtxDestroy_v2); 
+	tryLoad(cuCtxSetCurrent); 
   if(!handle) return false; 
   if(!cuInit_p) return false; 
+  if(cuInit_p(0) != CUDA_SUCCESS) return false;
   return true;
 }
 
@@ -70,7 +90,7 @@ std::string cudaarch = "sm_70";
 std::string cudafeatures = "+ptx64"; 
 
 void* PTXtoELF(const char* ptx){
-      nvPTXCompilerHandle compiler = NULL;
+	nvPTXCompilerHandle compiler = NULL;
   nvPTXCompileResult status;
 
   size_t elfSize, infoSize, errorSize;
@@ -224,7 +244,6 @@ CUstream launchCudaELF(void* elf, void** args, size_t n){
   CUfunction kernel;
   CUdevice device; 
 
-  CUDA_SAFE_CALL(cuInit_p(0));
   CUDA_SAFE_CALL(cuDeviceGet_p(&device, 0));
 
   CUDA_SAFE_CALL(cuCtxCreate_v2_p(&context, 0, device));

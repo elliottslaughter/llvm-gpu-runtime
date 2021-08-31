@@ -1,4 +1,5 @@
 #include"implementations.h"
+#include"gpu.h"
 #include<error.h>
 #include<stdbool.h>
 #include<llvm/IR/Module.h>
@@ -16,38 +17,44 @@ typedef enum {
 
 runtime globalRuntime = none;
 
+void *gpuManagedMalloc(size_t n){
+	switch(globalRuntime){
+		case hip:
+			return hipManagedMalloc(n);
+		case cuda:
+			return cudaManagedMalloc(n);
+		default:
+			err("no spirv managed malloc");
+	}	
+}
+
 void initRuntime(){
   if(globalRuntime != none) return;
-  if(initSPIRV()) globalRuntime = spirv; 
-  if(initHIP()) globalRuntime = spirv; 
-  if(initCUDA()) globalRuntime = cuda;
-  err("No gpu runtimes found, needed OpenCL with SPIRV support, HIP, or CUDA\n");
+  if(initCUDA()) {
+		globalRuntime = cuda;
+		return;
+	}
+  if(initHIP()){
+		globalRuntime = hip; 
+		return;
+	}
+  if(initSPIRV()){
+		globalRuntime = spirv; 
+		return;
+	}
+	err("No gpu runtimes found, needed OpenCL with SPIRV support, HIP, or CUDA\n");
 }
 
-void* getKernel(llvm::Module* bc){
+void* launchKernel(llvm::Module& bc, void** args, size_t n){
   switch(globalRuntime){
     case spirv: 
-      return getSPIRVKernel(bc);
+      return launchSPIRVKernel(bc, args, n);
     case hip:
-      return getHIPKernel(bc);
+      return launchHIPKernel(bc, args, n);
     case cuda:
-      return getCUDAKernel(bc);
+      return (void*)launchCUDAKernel(bc, args, n);
     default:
       err("Can't get kernel without valid runtime");
-  }
-  return NULL; 
-}
-
-void* runKernel(void* kernel){
-  switch(globalRuntime){
-    case spirv:
-      return runSPIRVKernel(kernel);
-    case hip:
-      return runHIPKernel(kernel);
-    case cuda:
-      return runCUDAKernel(kernel);
-    default:
-      err("Can't run kernel without valid runtime");
   }
   return NULL; 
 }
@@ -59,7 +66,7 @@ void waitKernel(void* wait){
     case hip:
       return waitHIPKernel(wait);
     case cuda:
-      return waitCUDAKernel(wait);
+      return waitCUDAKernel((CUstream)wait);
     default:
       err("Can't wait kernel without valid runtime");
   }
