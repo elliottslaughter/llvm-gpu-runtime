@@ -6,6 +6,10 @@
 #include<llvm/IR/Constants.h>
 #include<llvm/IR/Instruction.h>
 #include<llvm/IR/Verifier.h>
+#include<llvm/IR/Instructions.h>
+#include<llvm/IR/Intrinsics.h>
+#include<llvm/IR/IntrinsicsNVPTX.h>
+#include<llvm/Transforms/Utils/BasicBlockUtils.h>
 #include<llvm/Support/TargetSelect.h>
 #include<llvm/Support/CommandLine.h>
 #include<llvm/Support/raw_os_ostream.h>
@@ -164,36 +168,56 @@ const char* LLVMtoPTX(Module& m) {
 
   Triple TT("nvptx64", "nvidia", "cuda"); 
   m.setTargetTriple(TT.str()); 
-  for(auto &F : m){
-    AttrBuilder Attrs;
-    Attrs.addAttribute("target-cpu", cudaarch);
-    Attrs.addAttribute("target-features", cudafeatures + ",+" + cudaarch);
-    /*
-    Attrs.addAttribute(Attribute::NoRecurse); 
-    Attrs.addAttribute(Attribute::Convergent); 
-    */
-    F.removeFnAttr("target-cpu");
-    F.removeFnAttr("target-features");
-    /*
-    F.removeFnAttr(Attribute::StackProtectStrong); 
-    F.removeFnAttr(Attribute::UWTable); 
-    */
-    F.addAttributes(AttributeList::FunctionIndex, Attrs);
-    NamedMDNode *Annotations =
-      m.getOrInsertNamedMetadata("nvvm.annotations");
+  Function& F = *m.getFunction("f");
 
-    SmallVector<Metadata *, 3> AV;
-    AV.push_back(ValueAsMetadata::get(&F));
-    AV.push_back(MDString::get(ctx, "kernel"));
-    AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(ctx),
-                                                       1)));
-    Annotations->addOperand(MDNode::get(ctx, AV));
+  AttrBuilder Attrs;
+  Attrs.addAttribute("target-cpu", cudaarch);
+  Attrs.addAttribute("target-features", cudafeatures + ",+" + cudaarch);
+  /*
+  Attrs.addAttribute(Attribute::NoRecurse); 
+  Attrs.addAttribute(Attribute::Convergent); 
+  */
+  F.removeFnAttr("target-cpu");
+  F.removeFnAttr("target-features");
+  /*
+  F.removeFnAttr(Attribute::StackProtectStrong); 
+  F.removeFnAttr(Attribute::UWTable); 
+  */
+  F.addAttributes(AttributeList::FunctionIndex, Attrs);
+  NamedMDNode *Annotations =
+    m.getOrInsertNamedMetadata("nvvm.annotations");
+
+  SmallVector<Metadata *, 3> AV;
+  AV.push_back(ValueAsMetadata::get(&F));
+  AV.push_back(MDString::get(ctx, "kernel"));
+  AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(ctx),
+                                                     1)));
+  Annotations->addOperand(MDNode::get(ctx, AV));
+
+  auto tid = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_read_ptx_sreg_tid_x);
+	
+  std::vector<std::pair<Instruction*, CallInst*>> tids; 
+  for(auto &BB : F){
+    for(auto &I : BB){
+      if(auto *CI = dyn_cast<CallInst>(&I)){
+        if(Function *f = CI->getCalledFunction()){
+          if(f->getName() == "gtid"){
+            tids.push_back(std::make_pair(&I, CallInst::Create(tid)));
+          }				
+        }	
+      }
+    }
   }
 
-  Type* IntTy = Type::getInt32Ty(ctx); 
-  auto tid = m.getOrInsertFunction("llvm.nvvm.read.ptx.sreg.tid.x", 
-    FunctionType::get(IntTy,  IntTy )); 
+  for(auto p : tids){
+    ReplaceInstWithInst(p.first, p.second);
+    p.second->setTailCall();
+  }
 
+  m.getFunction("gtid")->eraseFromParent();
+
+  m.print(llvm::errs(), nullptr);
+	
   // Create PTX
   auto ptxbuf = new SmallVector<char, 1<<20>(); 
   raw_svector_ostream ptx(*ptxbuf); 
@@ -263,13 +287,14 @@ CUstream launchCudaELF(void* elf, void** args, size_t n){
   return stream;
 }
 
-CUstream launchCUDAKernel(Module& m, void** args, int n) {
+void* launchCUDAKernel(Module& m, void** args, size_t n) {
   const char* ptx = LLVMtoPTX(m);
   void* elf = PTXtoELF(ptx); 
-  return launchCudaELF(elf, args, n); 
+  return (void*)launchCudaELF(elf, args, n); 
 }
 
-void waitCUDAKernel(CUstream wait) {
+void waitCUDAKernel(void* vwait) {
+	CUstream wait = (CUstream)vwait;
   CUDA_SAFE_CALL(cuStreamSynchronize_p(wait)); 
   CUDA_SAFE_CALL(cuStreamDestroy_v2_p(wait)); 
   CUDA_SAFE_CALL(cuCtxDestroy_v2_p(context));

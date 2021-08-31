@@ -1,6 +1,8 @@
-#include"implementations.h"
 #include"gpu.h"
 #include<error.h>
+#include<llvm-cuda.h>
+#include<llvm-hip.h>
+#include<nospirv.h>
 #include<stdbool.h>
 #include<llvm/IR/Module.h>
 
@@ -26,6 +28,7 @@ void *gpuManagedMalloc(size_t n){
 		default:
 			err("no spirv managed malloc");
 	}	
+	return NULL;
 }
 
 void initRuntime(){
@@ -52,7 +55,7 @@ void* launchKernel(llvm::Module& bc, void** args, size_t n){
     case hip:
       return launchHIPKernel(bc, args, n);
     case cuda:
-      return (void*)launchCUDAKernel(bc, args, n);
+      return launchCUDAKernel(bc, args, n);
     default:
       err("Can't get kernel without valid runtime");
   }
@@ -66,7 +69,7 @@ void waitKernel(void* wait){
     case hip:
       return waitHIPKernel(wait);
     case cuda:
-      return waitCUDAKernel((CUstream)wait);
+      return waitCUDAKernel(wait);
     default:
       err("Can't wait kernel without valid runtime");
   }

@@ -3,7 +3,6 @@
 #include<llvm/IRReader/IRReader.h>
 #include<llvm/Support/SourceMgr.h>
 #include "gpu.h"
-#include<cuda.h>
 #include<iostream>
 
 int main(){

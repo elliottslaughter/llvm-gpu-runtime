@@ -1,5 +1,6 @@
+#include<kernelHeader.h>
 
 void f(double* x){
-	x[0] = 1.0;
+	x[gtid()] = 1.0;
 }
 
