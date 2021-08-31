@@ -1,4 +1,4 @@
-all: test gpu.bc kernel.ll kernel-cuda-nvptx64-nvidia-cuda-sm_75.ll
+all: test 
 
 links=-L${CUDA_PATH}/targets/x86_64-linux/lib -lrt -ldl -lcudart_static -lnvptxcompiler_static -lpthread -lLLVM 
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
@@ -29,3 +29,6 @@ spirv.o: check-spirv.cc llvm-spirv.cc nospirv.cc
 gpu.o: gpu.cc *.h  
 	clang++ ${opts} ${incs} -c $< -o $@
 
+.PHONY: clean
+clean:
+	rm *.o *.bc *.ll test
