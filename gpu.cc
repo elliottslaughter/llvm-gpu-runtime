@@ -1,8 +1,9 @@
 #include"gpu.h"
+#include"llvm-cuda.h"
+#include"llvm-hip.h"
+#include"llvm-spirv.h"
+
 #include<error.h>
-#include<llvm-cuda.h>
-#include<llvm-hip.h>
-#include<nospirv.h>
 #include<stdbool.h>
 #include<llvm/IR/Module.h>
 

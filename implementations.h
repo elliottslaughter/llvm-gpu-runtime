@@ -12,7 +12,7 @@
 #include"nocuda.h"
 #endif
 
-#ifdef found_spirv
+#ifdef enable_spirv
 #include"llvm-spirv.h"
 #else
 #include"nospirv.h"
