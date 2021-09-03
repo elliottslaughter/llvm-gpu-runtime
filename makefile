@@ -1,12 +1,15 @@
 all: test 
 
-links=-L${CUDA_PATH}/targets/x86_64-linux/lib -lrt -ldl -lcudart_static -lnvptxcompiler_static -lpthread -lLLVM 
+links=-L${CUDA_PATH}/targets/x86_64-linux/lib -lrt -ldl -lnvptxcompiler_static -lpthread -lLLVM 
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
-opts=-g
-flags=${links} ${incs} ${opts}
+opts=-g -fPIC
+flags=${links} ${incs} ${opts} 
 
-test: test.cc gpu.o spirv.o hip.o cuda.o kernel.bc 
-	clang++ $< spirv.o hip.o cuda.o gpu.o ${flags} -o $@
+test: test.cc llvm-gpu.so kernel.bc 
+	clang++ $< llvm-gpu.so ${flags} -o $@
+
+llvm-gpu.so: gpu.o spirv.o hip.o cuda.o
+	clang++ -shared $^ -o $@ ${flags}
 
 kernel.bc: kernel.c
 	clang -c -O2 -emit-llvm $< -o $@ 
@@ -28,6 +31,10 @@ spirv.o: check-spirv.cc llvm-spirv.cc nospirv.cc
 
 gpu.o: gpu.cc *.h  
 	clang++ ${opts} ${incs} -c $< -o $@
+
+install: llvm-gpu.so
+	install -d /usr/local/lib
+	install -m 644 llvm-gpu.so /usr/local/lib
 
 .PHONY: clean
 clean:

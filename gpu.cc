@@ -2,10 +2,12 @@
 #include"llvm-cuda.h"
 #include"llvm-hip.h"
 #include"llvm-spirv.h"
+#include<llvm/IR/Module.h>
+#include<llvm/IRReader/IRReader.h>
+#include<llvm/Support/SourceMgr.h>
 
 #include<error.h>
 #include<stdbool.h>
-#include<llvm/IR/Module.h>
 
 void err(const char* msg){
   return error(1, 1, "%s", msg);
@@ -47,6 +49,16 @@ void initRuntime(){
 		return;
 	}
 	err("No gpu runtimes found, needed OpenCL with SPIRV support, HIP, or CUDA\n");
+}
+
+void* launchBCKernel(const char* bc, void** args, size_t n){
+  llvm::LLVMContext C; 
+  llvm::SMDiagnostic SMD; 
+  llvm::StringRef sr(bc); 
+  llvm::MemoryBufferRef mbr(sr, "kernelModRef"); 
+  std::unique_ptr<llvm::Module> mod =
+      parseIR(mbr, SMD, C);
+  return launchKernel(*mod, args, n); 
 }
 
 void* launchKernel(llvm::Module& bc, void** args, size_t n){

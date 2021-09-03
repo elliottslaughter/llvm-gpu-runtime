@@ -17,11 +17,11 @@
 #include<llvm/Support/ToolOutputFile.h>
 #include<llvm/Support/TargetRegistry.h>
 #include<llvm/Transforms/IPO/PassManagerBuilder.h>
-#include<cuda_runtime_api.h>
 #include<nvPTXCompiler.h>
 #include<cuda.h>
 
 CUcontext context;
+CUdevice device; 
 
 #define declare(name) decltype(name)* name##_p = NULL; 
 #define tryLoad(name) name##_p = (decltype(name)*)dlsym(handle, #name)
@@ -39,6 +39,8 @@ declare(cuModuleUnload);
 declare(cuCtxCreate_v2); 
 declare(cuCtxDestroy_v2); 
 declare(cuCtxSetCurrent); 
+declare(cuMemAllocManaged); 
+declare(cuDeviceGetAttribute); 
 
 using namespace llvm; 
 
@@ -63,9 +65,9 @@ using namespace llvm;
     } while(0)
 
 void* cudaManagedMalloc(size_t n){
-	void* res;
-	if(cudaMallocManaged(&res, n) != cudaSuccess) printf("cuda malloc failed\n");
-	return res;
+	CUdeviceptr p;
+	cuMemAllocManaged_p(&p, n, CU_MEM_ATTACH_GLOBAL);
+	return (void*)p;
 }
 
 bool initCUDA(){
@@ -84,6 +86,8 @@ bool initCUDA(){
 	tryLoad(cuCtxCreate_v2); 
 	tryLoad(cuCtxDestroy_v2); 
 	tryLoad(cuCtxSetCurrent); 
+  tryLoad(cuMemAllocManaged); 
+  tryLoad(cuDeviceGetAttribute); 
   if(!handle) return false; 
   if(!cuInit_p) return false; 
   if(cuInit_p(0) != CUDA_SUCCESS) return false;
@@ -154,17 +158,12 @@ void* PTXtoELF(const char* ptx){
 
 const char* LLVMtoPTX(Module& m) {
   LLVMContext& ctx = m.getContext(); 
-  int deviceCount = 0;
-  cudaGetDeviceCount(&deviceCount);
-  for(int dev=0; dev<deviceCount; dev++){
-    cudaSetDevice(dev);
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, dev);
-    std::ostringstream arch;
-    arch << "sm_" << deviceProp.major << deviceProp.minor; 
-    cudaarch = arch.str(); 
-    std::cout << cudaarch << std::endl; 
-  }
+  int maj, min; 
+  cuDeviceGetAttribute_p(&maj, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device); 
+  cuDeviceGetAttribute_p(&min, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device); 
+  std::ostringstream arch;
+  arch << "sm_" << maj << min;
+  cudaarch = arch.str();
 
   Triple TT("nvptx64", "nvidia", "cuda"); 
   m.setTargetTriple(TT.str()); 
@@ -263,14 +262,12 @@ const char* LLVMtoPTX(Module& m) {
 
 CUstream launchCudaELF(void* elf, void** args, size_t n){
   CUstream stream;
-
   CUmodule module;
   CUfunction kernel;
-  CUdevice device; 
-
   CUDA_SAFE_CALL(cuDeviceGet_p(&device, 0));
-
   CUDA_SAFE_CALL(cuCtxCreate_v2_p(&context, 0, device));
+
+
   CUDA_SAFE_CALL(cuModuleLoadDataEx_p(&module, elf, 0, 0, 0));
   CUDA_SAFE_CALL(cuModuleGetFunction_p(&kernel, module, "f"));
 
