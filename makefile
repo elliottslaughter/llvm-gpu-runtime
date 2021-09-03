@@ -1,5 +1,6 @@
 all: test 
 
+installPrefix=${HOME}/usr/`uname -m`/centos7
 links=-L${CUDA_PATH}/targets/x86_64-linux/lib -lrt -ldl -lnvptxcompiler_static -lpthread -lLLVM 
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
 opts=-g -fPIC
@@ -33,10 +34,10 @@ gpu.o: gpu.cc *.h
 	clang++ ${opts} ${incs} -c $< -o $@
 
 install: libllvm-gpu.so gpu.h
-	install -d /usr/local/lib
-	install -m 644 libllvm-gpu.so /usr/local/lib
-	install -d /usr/local/include
-	install -m 644 gpu.h /usr/local/include
+	install -d ${installPrefix}/lib
+	install -m 644 libllvm-gpu.so ${installPrefix}/lib
+	install -d ${installPrefix}/include
+	install -m 644 gpu.h ${installPrefix}/include
 
 .PHONY: clean
 clean:
