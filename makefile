@@ -3,7 +3,7 @@ all: test
 links=-L${CUDA_PATH}/targets/x86_64-linux/lib -lrt -ldl -lnvptxcompiler_static -lpthread -lLLVM 
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
 opts=-g -fPIC
-flags=${links} ${incs} ${opts} 
+flags=${links} ${incs} ${opts} -Wall
 
 test: test.cc llvm-gpu.so kernel.bc 
 	clang++ $< llvm-gpu.so ${flags} -o $@

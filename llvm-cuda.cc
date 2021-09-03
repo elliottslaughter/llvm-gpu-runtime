@@ -20,8 +20,10 @@
 #include<nvPTXCompiler.h>
 #include<cuda.h>
 
+// TODO: do better than just global versions of these
 CUcontext context;
 CUdevice device; 
+CUstream stream;
 
 #define declare(name) decltype(name)* name##_p = NULL; 
 #define tryLoad(name) name##_p = (decltype(name)*)dlsym(handle, #name)
@@ -66,7 +68,7 @@ using namespace llvm;
 
 void* cudaManagedMalloc(size_t n){
 	CUdeviceptr p;
-	cuMemAllocManaged_p(&p, n, CU_MEM_ATTACH_GLOBAL);
+	CUDA_SAFE_CALL(cuMemAllocManaged_p(&p, n, CU_MEM_ATTACH_HOST));
 	return (void*)p;
 }
 
@@ -91,6 +93,8 @@ bool initCUDA(){
   if(!handle) return false; 
   if(!cuInit_p) return false; 
   if(cuInit_p(0) != CUDA_SUCCESS) return false;
+  CUDA_SAFE_CALL(cuDeviceGet_p(&device, 0));
+  CUDA_SAFE_CALL(cuCtxCreate_v2_p(&context, 0, device));
   return true;
 }
 
@@ -261,25 +265,22 @@ const char* LLVMtoPTX(Module& m) {
 }
 
 CUstream launchCudaELF(void* elf, void** args, size_t n){
-  CUstream stream;
   CUmodule module;
   CUfunction kernel;
-  CUDA_SAFE_CALL(cuDeviceGet_p(&device, 0));
-  CUDA_SAFE_CALL(cuCtxCreate_v2_p(&context, 0, device));
 
 
   CUDA_SAFE_CALL(cuModuleLoadDataEx_p(&module, elf, 0, 0, 0));
   CUDA_SAFE_CALL(cuModuleGetFunction_p(&kernel, module, "f"));
 
   CUDA_SAFE_CALL(cuStreamCreate_p(&stream, 0)); 
-  CUDA_SAFE_CALL( cuLaunchKernel_p(kernel,
+  CUDA_SAFE_CALL(cuLaunchKernel_p(kernel,
                                  1, 1, 1, // grid dim
                                  n, 1, 1, // block dim
                                  0, stream, // shared mem and stream
                                  args, NULL)); // arguments
 
   // Release resources.
-  CUDA_SAFE_CALL(cuModuleUnload_p(module));
+  //CUDA_SAFE_CALL(cuModuleUnload_p(module));
  
   return stream;
 }
@@ -291,9 +292,10 @@ void* launchCUDAKernel(Module& m, void** args, size_t n) {
 }
 
 void waitCUDAKernel(void* vwait) {
-	CUstream wait = (CUstream)vwait;
-  CUDA_SAFE_CALL(cuStreamSynchronize_p(wait)); 
-  CUDA_SAFE_CALL(cuStreamDestroy_v2_p(wait)); 
-  CUDA_SAFE_CALL(cuCtxDestroy_v2_p(context));
+	//CUstream wait = (CUstream)vwait;
+	CUstream wait = stream; 
+  CUDA_SAFE_CALL(cuStreamSynchronize_p(stream)); 
+  //CUDA_SAFE_CALL(cuStreamDestroy_v2_p(wait)); 
+  //CUDA_SAFE_CALL(cuCtxDestroy_v2_p(context));
 }
 
