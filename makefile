@@ -5,10 +5,10 @@ incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
 opts=-g -fPIC
 flags=${links} ${incs} ${opts} -Wall
 
-test: test.cc llvm-gpu.so kernel.bc 
-	clang++ $< llvm-gpu.so ${flags} -o $@
+test: test.cc libllvm-gpu.so kernel.bc 
+	clang++ $< -lllvm-gpu ${flags} -o $@
 
-llvm-gpu.so: gpu.o spirv.o hip.o cuda.o
+libllvm-gpu.so: gpu.o spirv.o hip.o cuda.o
 	clang++ -shared $^ -o $@ ${flags}
 
 kernel.bc: kernel.c
@@ -32,9 +32,11 @@ spirv.o: check-spirv.cc llvm-spirv.cc nospirv.cc
 gpu.o: gpu.cc *.h  
 	clang++ ${opts} ${incs} -c $< -o $@
 
-install: llvm-gpu.so
+install: libllvm-gpu.so gpu.h
 	install -d /usr/local/lib
-	install -m 644 llvm-gpu.so /usr/local/lib
+	install -m 644 libllvm-gpu.so /usr/local/lib
+	install -d /usr/local/include
+	install -m 644 gpu.h /usr/local/include
 
 .PHONY: clean
 clean:
