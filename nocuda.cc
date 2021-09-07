@@ -1,5 +1,6 @@
 #include<stdlib.h>
 #include<stdbool.h>
+#include<llvm/IR/Module.h>
 
 void* cudaManagedMalloc(size_t n){return NULL;}
 int initCUDA(){return false; }

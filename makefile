@@ -41,4 +41,4 @@ install: libllvm-gpu.so gpu.h
 
 .PHONY: clean
 clean:
-	rm -f *.o *.bc *.ll test
+	rm -f *.o *.so *.bc *.ll test
