@@ -8,7 +8,7 @@ opts=-g -fPIC
 flags=${links} ${incs} ${opts} -Wall
 
 test: test.cc libllvm-gpu.so kernel.bc 
-	clang++ $< -lllvm-gpu ${flags} -o $@
+	clang++ $< libllvm-gpu.so ${flags} -o $@
 
 libllvm-gpu.so: gpu.o spirv.o hip.o linkedcuda.o
 	clang++ -shared $^ -o $@ ${flags}
@@ -26,7 +26,7 @@ cuda.o: check-cuda.cc llvm-cuda.cc nocuda.cc
 	clang++ ${opts} ${incs} -c $< -o $@
 
 linkedcuda.o: cuda.o
-	ld -r -o $@ $< ${nvptx} || cp $< $@
+	ld -r -o $@ $< ${nvptx} 2>/dev/null || cp $< $@
 
 hip.o: check-hip.cc llvm-hip.cc nohip.cc
 	clang++ ${opts} ${incs} -c $< -o $@
