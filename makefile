@@ -1,14 +1,14 @@
-all: test 
+all: test libllvm-gpu.so 
 
-installPrefix=${HOME}/usr/`uname -m`/centos7
+installPrefix=/usr/local/
 nvptx=${CUDA_PATH}/lib64/libnvptxcompiler_static.a
 links=-lrt -ldl -lpthread -lLLVM 
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
 opts=-g -fPIC
 flags=${links} ${incs} ${opts} -Wall
 
-test: test.cc libllvm-gpu.so kernel.bc 
-	clang++ $< libllvm-gpu.so ${flags} -o $@
+test: test.cc gpu.o spirv.o hip.o linkedcuda.o kernel.bc 
+	clang++ $< gpu.o spirv.o hip.o linkedcuda.o ${flags} -o $@
 
 libllvm-gpu.so: gpu.o spirv.o hip.o linkedcuda.o
 	clang++ -shared $^ -o $@ ${flags}
@@ -26,7 +26,7 @@ cuda.o: check-cuda.cc llvm-cuda.cc nocuda.cc
 	clang++ ${opts} ${incs} -c $< -o $@
 
 linkedcuda.o: cuda.o
-	ld -r -o $@ $< ${nvptx} 2>/dev/null || cp $< $@
+	ld -r -o $@ $< ${nvptx} || cp $< $@
 
 hip.o: check-hip.cc llvm-hip.cc nohip.cc
 	clang++ ${opts} ${incs} -c $< -o $@

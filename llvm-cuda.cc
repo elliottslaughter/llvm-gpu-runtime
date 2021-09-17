@@ -7,6 +7,7 @@
 #include<llvm/IR/Instruction.h>
 #include<llvm/IR/Verifier.h>
 #include<llvm/IR/Instructions.h>
+#include<llvm/IR/IRBuilder.h>
 #include<llvm/IR/Intrinsics.h>
 #include<llvm/IR/IntrinsicsNVPTX.h>
 #include<llvm/Transforms/Utils/BasicBlockUtils.h>
@@ -24,6 +25,7 @@
 CUcontext context;
 CUdevice device; 
 CUstream stream;
+int warpsize; 
 
 #define declare(name) decltype(name)* name##_p = NULL; 
 #define tryLoad(name) name##_p = (decltype(name)*)dlsym(handle, #name)
@@ -165,6 +167,8 @@ const char* LLVMtoPTX(Module& m) {
   int maj, min; 
   cuDeviceGetAttribute_p(&maj, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device); 
   cuDeviceGetAttribute_p(&min, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device); 
+  cuDeviceGetAttribute_p(&warpsize, CU_DEVICE_ATTRIBUTE_WARP_SIZE, device); 
+
   std::ostringstream arch;
   arch << "sm_" << maj << min;
   cudaarch = arch.str();
@@ -198,14 +202,24 @@ const char* LLVMtoPTX(Module& m) {
   Annotations->addOperand(MDNode::get(ctx, AV));
 
   auto tid = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_read_ptx_sreg_tid_x);
-	
-  std::vector<std::pair<Instruction*, CallInst*>> tids; 
+  auto ntid = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
+  auto ctaid = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_read_ptx_sreg_ctaid_x);
+
+  IRBuilder<> B(F.getEntryBlock().getFirstNonPHI()); 
+  Value *tidv = B.CreateCall(tid, {}); 
+  Value *ntidv = B.CreateCall(ntid, {});
+  Value *ctaidv = B.CreateCall(ctaid, {}); 
+  
+  Value *tidoff = B.CreateMul(ctaidv, ntidv); 
+  Value *gtid = B.CreateAdd(tidoff, tidv); 
+
+  std::vector<Instruction*> tids; 
   for(auto &BB : F){
     for(auto &I : BB){
       if(auto *CI = dyn_cast<CallInst>(&I)){
         if(Function *f = CI->getCalledFunction()){
           if(f->getName() == "gtid"){
-            tids.push_back(std::make_pair(&I, CallInst::Create(tid)));
+            tids.push_back(&I);
           }				
         }	
       }
@@ -213,8 +227,8 @@ const char* LLVMtoPTX(Module& m) {
   }
 
   for(auto p : tids){
-    ReplaceInstWithInst(p.first, p.second);
-    p.second->setTailCall();
+    p->replaceAllUsesWith(gtid); 
+    p->eraseFromParent(); 
   }
 
   if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
@@ -273,9 +287,13 @@ CUstream launchCudaELF(void* elf, void** args, size_t n){
   CUDA_SAFE_CALL(cuModuleGetFunction_p(&kernel, module, "f"));
 
   CUDA_SAFE_CALL(cuStreamCreate_p(&stream, 0)); 
+  // (8 * warpsize) seems like reasonable default block size 
+  // TODO: come up with more sophisticated heuristic
+  int blocksize = 8 * warpsize;  
+  assert(n % blocksize == 0); 
   CUDA_SAFE_CALL(cuLaunchKernel_p(kernel,
-                                 1, 1, 1, // grid dim
-                                 n, 1, 1, // block dim
+                                 n/blocksize, 1, 1, // grid dim
+                                 blocksize, 1, 1, // block dim
                                  0, stream, // shared mem and stream
                                  args, NULL)); // arguments
 
@@ -288,7 +306,7 @@ CUstream launchCudaELF(void* elf, void** args, size_t n){
 void* launchCUDAKernel(Module& m, void** args, size_t n) {
   const char* ptx = LLVMtoPTX(m);
   void* elf = PTXtoELF(ptx); 
-  return (void*)launchCudaELF(elf, args, n); 
+  return (void*)launchCudaELF((void*)ptx, args, n); 
 }
 
 void waitCUDAKernel(void* vwait) {
