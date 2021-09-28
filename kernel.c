@@ -1,6 +1,7 @@
 #include"kernelHeader.h"
 
-void f(double* x){
-	x[gtid()] = 1.0;
+void kitsune_kernel(double* x, double* y, double* z){
+  int id = gtid(); 
+	z[id] = y[id] + x[id]; 
 }
 

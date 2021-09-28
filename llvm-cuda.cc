@@ -175,7 +175,7 @@ const char* LLVMtoPTX(Module& m) {
 
   Triple TT("nvptx64", "nvidia", "cuda"); 
   m.setTargetTriple(TT.str()); 
-  Function& F = *m.getFunction("f");
+  Function& F = *m.getFunction("kitsune_kernel");
 
   AttrBuilder Attrs;
   Attrs.addAttribute("target-cpu", cudaarch);
@@ -284,7 +284,7 @@ CUstream launchCudaELF(void* elf, void** args, size_t n){
 
 
   CUDA_SAFE_CALL(cuModuleLoadDataEx_p(&module, elf, 0, 0, 0));
-  CUDA_SAFE_CALL(cuModuleGetFunction_p(&kernel, module, "f"));
+  CUDA_SAFE_CALL(cuModuleGetFunction_p(&kernel, module, "kitsune_kernel"));
 
   CUDA_SAFE_CALL(cuStreamCreate_p(&stream, 0)); 
   // (8 * warpsize) seems like reasonable default block size 

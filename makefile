@@ -2,16 +2,21 @@ all: test libllvm-gpu.so
 
 installPrefix=/usr/local/
 nvptx=${CUDA_PATH}/lib64/libnvptxcompiler_static.a
-links=-lrt -ldl -lpthread -lLLVM 
-incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
+links:=-lrt -lcurses -ldl -lpthread -lz -lLLVM-10
+clanginstall=/usr/local/
+incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include -I${clanginstall}/include/
 opts=-g -fPIC
-flags=${links} ${incs} ${opts} -Wall
+flags=${links} ${incs} ${opts} -Wall 
+clang=clang++
 
 test: test.cc gpu.o spirv.o hip.o linkedcuda.o kernel.bc 
-	clang++ $< gpu.o spirv.o hip.o linkedcuda.o ${flags} -o $@
+	${clang} $< gpu.o spirv.o hip.o linkedcuda.o ${incs} ${flags} -o $@
+
+test.ll: test.cc 
+	${clang} $< ${incs} -S -emit-llvm -o $@
 
 libllvm-gpu.so: gpu.o spirv.o hip.o linkedcuda.o
-	clang++ -shared $^ -o $@ ${flags}
+	${clang} -shared $^ -o $@ ${flags}
 
 kernel.bc: kernel.c
 	clang -c -O2 -emit-llvm $< -o $@ 
@@ -23,19 +28,19 @@ kernel.ll: kernel.c
 	clang -S -emit-llvm $<
 
 cuda.o: check-cuda.cc llvm-cuda.cc nocuda.cc
-	clang++ ${opts} ${incs} -c $< -o $@
+	${clang} ${opts} ${incs} -c $< -o $@
 
 linkedcuda.o: cuda.o
 	ld -r -o $@ $< ${nvptx} || cp $< $@
 
 hip.o: check-hip.cc llvm-hip.cc nohip.cc
-	clang++ ${opts} ${incs} -c $< -o $@
+	${clang} ${opts} ${incs} -c $< -o $@
 
 spirv.o: check-spirv.cc llvm-spirv.cc nospirv.cc
-	clang++ ${opts} ${incs} -c $< -o $@
+	${clang} ${opts} ${incs} -c $< -o $@
 
 gpu.o: gpu.cc *.h  
-	clang++ ${opts} ${incs} -c $< -o $@
+	${clang} ${opts} ${incs} -c $< -o $@
 
 install: libllvm-gpu.so gpu.h
 	install -d ${installPrefix}/lib
