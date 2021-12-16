@@ -1,12 +1,12 @@
 all: test libllvm-gpu.so 
 
-installPrefix=/usr/local/
+installPrefix=${HOME}/usr/${PREFIX}
 nvptx=${CUDA_PATH}/lib64/libnvptxcompiler_static.a
-links:=-lrt -lcurses -ldl -lpthread -lz -lLLVM-10
+links:=-lrt -lcurses -ldl -lpthread -lz -lLLVM-12
 clanginstall=/usr/local/
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include -I${clanginstall}/include/
 opts=-g -fPIC
-flags=${links} ${incs} ${opts} -Wall 
+flags=${links} ${incs} ${opts} -Wall
 clang=clang++
 
 test: test.cc gpu.o spirv.o hip.o linkedcuda.o kernel.bc 

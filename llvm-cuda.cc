@@ -14,6 +14,7 @@
 #include<llvm/Support/TargetSelect.h>
 #include<llvm/Support/CommandLine.h>
 #include<llvm/Support/raw_os_ostream.h>
+#include<llvm/Support/raw_os_ostream.h>
 #include<llvm/Target/TargetMachine.h>
 #include<llvm/Support/ToolOutputFile.h>
 #include<llvm/Support/TargetRegistry.h>
@@ -217,6 +218,7 @@ const char* LLVMtoPTX(Module& m) {
   for(auto &BB : F){
     for(auto &I : BB){
       if(auto *CI = dyn_cast<CallInst>(&I)){
+        I.print(errs()); std::cout << std::endl; 
         if(Function *f = CI->getCalledFunction()){
           if(f->getName() == "gtid"){
             tids.push_back(&I);
@@ -233,7 +235,9 @@ const char* LLVMtoPTX(Module& m) {
 
   if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
 
-  m.print(llvm::errs(), nullptr);
+  std::cout << "Module after llvm-gpu processing\n" << std::endl; 
+  m.print(errs(), nullptr);
+  std::cout << std::endl; 
 	
   // Create PTX
   auto ptxbuf = new SmallVector<char, 1<<20>(); 
