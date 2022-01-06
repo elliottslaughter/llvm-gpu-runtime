@@ -7,7 +7,7 @@ clanginstall=/usr/local/
 incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include -I${clanginstall}/include/
 opts=-g -fPIC
 flags=${links} ${incs} ${opts} -Wall
-clang=clang++
+clang=clang++ 
 
 test: test.cc gpu.o spirv.o hip.o linkedcuda.o kernel.bc 
 	${clang} $< gpu.o spirv.o hip.o linkedcuda.o ${incs} ${flags} -o $@

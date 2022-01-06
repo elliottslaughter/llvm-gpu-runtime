@@ -28,9 +28,11 @@ int main(){
   std::cout << "Launched kernel...";
   waitKernel(w); 
   std::cout << "done" << std::endl; 
+  std::cout << "Checking results...";
   for(int i=0; i<n; i++){
-    printf("%f\n", z[i]);
+    if(z[i] != i + (3.14 - i)) printf("%f != %f\n",z[i],3.14); 
   }
+  std::cout << "success" << std::endl; 
 }
 
 

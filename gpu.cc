@@ -65,7 +65,7 @@ void* launchBCKernel(const char* bc, uint64_t bcsize, void** args, uint64_t n){
   std::unique_ptr<llvm::Module> mod =
       parseIR(mbr, SMD, C);
   if(!mod){
-    SMD.print("", llvm::errs()); 
+    SMD.print("Failed to parse kernel IR: ", llvm::errs()); 
     exit(1); 
   }
     

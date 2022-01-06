@@ -164,6 +164,8 @@ void* PTXtoELF(const char* ptx){
 }
 
 const char* LLVMtoPTX(Module& m) {
+  std::cout << "input module: " << std::endl; 
+  m.print(llvm::errs(), nullptr); 
   LLVMContext& ctx = m.getContext(); 
   int maj, min; 
   cuDeviceGetAttribute_p(&maj, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device); 
@@ -213,17 +215,43 @@ const char* LLVMtoPTX(Module& m) {
   
   Value *tidoff = B.CreateMul(ctaidv, ntidv); 
   Value *gtid = B.CreateAdd(tidoff, tidv); 
+  
+  // PTXAS doesn't like .<n> global names
+  for(GlobalVariable & g : m.globals()){
+    auto name = g.getName().str(); 
+    for(int i=0; i<name.size(); i++){
+      if(name[i] == '.') name[i] = '_'; 
+      std::cout << name << std::endl; 
+      g.setName(name); 
+    }
+  }
+
+  // Replace certain extern calls with intrinsics
+  auto sqrtf = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_sqrt_f);
+  auto sinf = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_sin_approx_ftz_f);
+  auto cosf = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_cos_approx_ftz_f);
 
   std::vector<Instruction*> tids; 
-  for(auto &BB : F){
-    for(auto &I : BB){
-      if(auto *CI = dyn_cast<CallInst>(&I)){
-        I.print(errs()); std::cout << std::endl; 
-        if(Function *f = CI->getCalledFunction()){
-          if(f->getName() == "gtid"){
-            tids.push_back(&I);
-          }				
-        }	
+  for(auto & F : m){
+    for(auto &BB : F){
+      for(auto &I : BB){
+        if(auto *CI = dyn_cast<CallInst>(&I)){
+          I.print(errs()); std::cout << std::endl; 
+          if(Function *f = CI->getCalledFunction()){
+            if(f->getName() == "gtid"){
+              tids.push_back(&I);
+            }				
+            if(f->getName() == "sqrtf"){
+              CI->setCalledFunction(sqrtf);
+            }				
+            if(f->getName() == "cosf"){
+              CI->setCalledFunction(cosf);
+            }				
+            if(f->getName() == "sinf"){
+              CI->setCalledFunction(sinf);
+            }				
+          }	
+        }
       }
     }
   }
@@ -234,6 +262,10 @@ const char* LLVMtoPTX(Module& m) {
   }
 
   if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
+  if(auto *f = m.getFunction("sqrtf")) f->eraseFromParent(); 
+  if(auto *f = m.getFunction("cosf")) f->eraseFromParent(); 
+  if(auto *f = m.getFunction("sinf")) f->eraseFromParent(); 
+  if(auto *f = m.getFunction("powf")) f->eraseFromParent(); 
 
   std::cout << "Module after llvm-gpu processing\n" << std::endl; 
   m.print(errs(), nullptr);
