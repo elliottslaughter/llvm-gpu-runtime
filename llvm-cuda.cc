@@ -167,7 +167,7 @@ void* PTXtoELF(const char* ptx){
   return elf; 
 }
 
-const char* LLVMtoPTX(Module& m) {
+std::string LLVMtoPTX(Module& m) {
   std::cout << "input module: " << std::endl; 
   m.print(llvm::errs(), nullptr); 
   LLVMContext& ctx = m.getContext(); 
@@ -347,7 +347,7 @@ const char* LLVMtoPTX(Module& m) {
   
   m.print(llvm::errs(), nullptr); 
   std::cout << ptx.str().str() << std::endl;
-  return ptx.str().data();  
+  return ptx.str().str();  
 }
 
 CUstream launchCudaELF(void* elf, void** args, size_t n){
@@ -376,9 +376,9 @@ CUstream launchCudaELF(void* elf, void** args, size_t n){
 }
 
 void* launchCUDAKernel(Module& m, void** args, size_t n) {
-  const char* ptx = LLVMtoPTX(m);
-  void* elf = PTXtoELF(ptx); 
-  return (void*)launchCudaELF((void*)ptx, args, n); 
+  std::string ptx = LLVMtoPTX(m);
+  void* elf = PTXtoELF(ptx.c_str()); 
+  return (void*)launchCudaELF(elf, args, n); 
 }
 
 void waitCUDAKernel(void* vwait) {
