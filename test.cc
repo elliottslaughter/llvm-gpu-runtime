@@ -30,7 +30,11 @@ int main(){
   std::cout << "done" << std::endl; 
   std::cout << "Checking results...";
   for(int i=0; i<n; i++){
-    if(z[i] != i + (3.14 - i)) printf("%f != %f\n",z[i],3.14); 
+    if(z[i] != sqrt(i) + (3.14 - i)){
+      std::cout << "failure: "; 
+      printf("%f != %f\n",z[i],3.14); 
+      exit(1); 
+    }
   }
   std::cout << "success" << std::endl; 
 }

@@ -10,6 +10,7 @@
 #include<llvm/IR/IRBuilder.h>
 #include<llvm/IR/Intrinsics.h>
 #include<llvm/IR/IntrinsicsNVPTX.h>
+#include<llvm/IRReader/IRReader.h>
 #include<llvm/Transforms/Utils/BasicBlockUtils.h>
 #include<llvm/Support/TargetSelect.h>
 #include<llvm/Support/CommandLine.h>
@@ -18,6 +19,9 @@
 #include<llvm/Target/TargetMachine.h>
 #include<llvm/Support/ToolOutputFile.h>
 #include<llvm/Support/TargetRegistry.h>
+#include<llvm/Support/SourceMgr.h>
+#include<llvm/Support/Process.h>
+#include<llvm/Linker/Linker.h>
 #include<llvm/Transforms/IPO/PassManagerBuilder.h>
 #include<nvPTXCompiler.h>
 #include<cuda.h>
@@ -226,29 +230,65 @@ const char* LLVMtoPTX(Module& m) {
     }
   }
 
-  // Replace certain extern calls with intrinsics
-  auto sqrtf = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_sqrt_f);
-  auto sinf = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_sin_approx_ftz_f);
-  auto cosf = Intrinsic::getDeclaration(&m, Intrinsic::nvvm_cos_approx_ftz_f);
+  // Check if there are unresolved sumbbols to see if we might need libdevice
+  std::set<std::string> unresolved; 
+  for(auto &f : m) {
+    if(f.hasExternalLinkage()){
+      unresolved.insert(f.getName().str()); 
+    }
+  }
+   
+  if(!unresolved.empty()){
+    // Load libdevice and check for provided functions
+    llvm::SMDiagnostic SMD; 
+    Optional<std::string> path = sys::Process::FindInEnvPath("CUDA_PATH","/nvvm/libdevice/libdevice.10.bc"); 
+    if(!path){
+      std::cerr << "Failed to find libdevice\n"; 
+      exit(1);
+    }
+    std::unique_ptr<llvm::Module> libdevice =
+        parseIRFile(*path, SMD, ctx);
+    if(!libdevice){ 
+      std::cerr << "Failed to parse libdevice\n"; 
+      exit(1);
+    }
+    // We iterate through the provided functions of the moodule and if there are
+    // remaining function calls we add them. 
+    std::set<std::string> provided; 
+    std::string nvpref = "__nv_"; 
+    for(auto &f : *libdevice) {
+      std::string name = f.getName().str(); 
+      auto res = std::mismatch(nvpref.begin(), nvpref.end(), name.begin()); 
+      auto oldName = name.substr(res.second - name.begin()); 
+      if(unresolved.count(oldName) > 0) provided.insert(oldName); 
+    }
+
+    for(auto &fn : provided){
+      if(auto *f = m.getFunction(fn)) f->setName("__nv_" + fn); ; 
+    }
+    for(auto & F : m){
+      for(auto &BB : F){
+        for(auto &I : BB){
+          if(auto *CI = dyn_cast<CallInst>(&I)){
+            if(Function *f = CI->getCalledFunction()){
+              std::cout << f->getName().str() << "\n"; 
+            }	
+          }
+        }
+      }
+    }
+    auto l = Linker(m); 
+    l.linkInModule(std::move(libdevice), 2); 
+  }
 
   std::vector<Instruction*> tids; 
   for(auto & F : m){
     for(auto &BB : F){
       for(auto &I : BB){
         if(auto *CI = dyn_cast<CallInst>(&I)){
-          I.print(errs()); std::cout << std::endl; 
           if(Function *f = CI->getCalledFunction()){
             if(f->getName() == "gtid"){
               tids.push_back(&I);
-            }				
-            if(f->getName() == "sqrtf"){
-              CI->setCalledFunction(sqrtf);
-            }				
-            if(f->getName() == "cosf"){
-              CI->setCalledFunction(cosf);
-            }				
-            if(f->getName() == "sinf"){
-              CI->setCalledFunction(sinf);
             }				
           }	
         }
@@ -262,10 +302,6 @@ const char* LLVMtoPTX(Module& m) {
   }
 
   if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
-  if(auto *f = m.getFunction("sqrtf")) f->eraseFromParent(); 
-  if(auto *f = m.getFunction("cosf")) f->eraseFromParent(); 
-  if(auto *f = m.getFunction("sinf")) f->eraseFromParent(); 
-  if(auto *f = m.getFunction("powf")) f->eraseFromParent(); 
 
   std::cout << "Module after llvm-gpu processing\n" << std::endl; 
   m.print(errs(), nullptr);
