@@ -261,7 +261,7 @@ std::string LLVMtoPTX(Module& m) {
       std::string name = f.getName().str(); 
       auto res = std::mismatch(nvpref.begin(), nvpref.end(), name.begin()); 
       auto oldName = name.substr(res.second - name.begin()); 
-      if(unresolved.count(oldName) > 0) provided.insert(oldName); 
+      if(res.first == nvpref.end() && unresolved.count(oldName) > 0) provided.insert(oldName); 
     }
 
     for(auto &fn : provided){

@@ -1,6 +1,6 @@
 all: test libllvm-gpu.so 
 
-installPrefix=${HOME}/usr/${PREFIX}
+installPrefix=/usr/local/
 nvptx=${CUDA_PATH}/lib64/libnvptxcompiler_static.a
 links:=-lrt -lcurses -ldl -lpthread -lz -lLLVM
 clanginstall=/usr/local/
