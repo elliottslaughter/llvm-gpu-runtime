@@ -23,6 +23,7 @@
 #include<llvm/Support/Process.h>
 #include<llvm/Linker/Linker.h>
 #include<llvm/Transforms/IPO/PassManagerBuilder.h>
+#include<llvm/Transforms/IPO.h>
 #include<nvPTXCompiler.h>
 #include<cuda.h>
 
@@ -315,6 +316,9 @@ std::string LLVMtoPTX(Module& m) {
   legacy::FunctionPassManager FPM(&m); 
   PassManagerBuilder Builder;
   Builder.OptLevel = 2; 
+  Builder.VerifyInput = 1; 
+  Builder.Inliner = createFunctionInliningPass(); 
+  Builder.populateLTOPassManager(PM);  
   Builder.populateFunctionPassManager(FPM);  
   Builder.populateModulePassManager(PM); 
 
@@ -342,7 +346,6 @@ std::string LLVMtoPTX(Module& m) {
   FPM.doInitialization();
   for(Function &F : m) FPM.run(F);
   FPM.doFinalization();
-  PM.add(createVerifierPass());
   PM.run(m); 
   
   m.print(llvm::errs(), nullptr); 
