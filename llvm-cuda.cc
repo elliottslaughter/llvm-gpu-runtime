@@ -242,7 +242,7 @@ std::string LLVMtoPTX(Module& m) {
   if(!unresolved.empty()){
     // Load libdevice and check for provided functions
     llvm::SMDiagnostic SMD; 
-    Optional<std::string> path = sys::Process::FindInEnvPath("CUDA_PATH","/nvvm/libdevice/libdevice.10.bc"); 
+    Optional<std::string> path = sys::Process::FindInEnvPath("CUDA_PATH","nvvm/libdevice/libdevice.10.bc"); 
     if(!path){
       std::cerr << "Failed to find libdevice\n"; 
       exit(1);
