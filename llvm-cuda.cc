@@ -121,7 +121,7 @@ void* PTXtoELF(const char* ptx){
   //std::string gpuFeatures = "--gpu-features=" + cudafeatures; 
 
   const char* compile_options[] = { gpuName.c_str(), 
-                                    //gpuFeatures.c_str(),
+                                    "--generate-line-info", 
                                     "--verbose"
                                   };
 
@@ -169,8 +169,8 @@ void* PTXtoELF(const char* ptx){
 }
 
 std::string LLVMtoPTX(Module& m) {
-  std::cout << "input module: " << std::endl; 
-  m.print(llvm::errs(), nullptr); 
+  //std::cout << "input module: " << std::endl; 
+  //m.print(llvm::errs(), nullptr); 
   LLVMContext& ctx = m.getContext(); 
   int maj, min; 
   cuDeviceGetAttribute_p(&maj, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device); 
@@ -226,7 +226,7 @@ std::string LLVMtoPTX(Module& m) {
     auto name = g.getName().str(); 
     for(int i=0; i<name.size(); i++){
       if(name[i] == '.') name[i] = '_'; 
-      std::cout << name << std::endl; 
+      //std::cout << name << std::endl; 
       g.setName(name); 
     }
   }
@@ -272,7 +272,7 @@ std::string LLVMtoPTX(Module& m) {
         for(auto &I : BB){
           if(auto *CI = dyn_cast<CallInst>(&I)){
             if(Function *f = CI->getCalledFunction()){
-              std::cout << f->getName().str() << "\n"; 
+              //std::cout << f->getName().str() << "\n"; 
             }	
           }
         }
@@ -304,9 +304,9 @@ std::string LLVMtoPTX(Module& m) {
 
   if(auto *f = m.getFunction("gtid")) f->eraseFromParent();
 
-  std::cout << "Module after llvm-gpu processing\n" << std::endl; 
-  m.print(errs(), nullptr);
-  std::cout << std::endl; 
+  //std::cout << "Module after llvm-gpu processing\n" << std::endl; 
+  //m.print(errs(), nullptr);
+  //std::cout << std::endl; 
 	
   // Create PTX
   auto ptxbuf = new SmallVector<char, 1<<20>(); 
@@ -317,7 +317,7 @@ std::string LLVMtoPTX(Module& m) {
   PassManagerBuilder Builder;
   Builder.OptLevel = 2; 
   Builder.VerifyInput = 1; 
-  Builder.Inliner = createFunctionInliningPass(); 
+  Builder.Inliner = createFunctionInliningPass(Builder.OptLevel); 
   Builder.populateLTOPassManager(PM);  
   Builder.populateFunctionPassManager(FPM);  
   Builder.populateModulePassManager(PM); 
@@ -348,8 +348,8 @@ std::string LLVMtoPTX(Module& m) {
   FPM.doFinalization();
   PM.run(m); 
   
-  m.print(llvm::errs(), nullptr); 
-  std::cout << ptx.str().str() << std::endl;
+  //m.print(llvm::errs(), nullptr); 
+  //std::cout << ptx.str().str() << std::endl;
   return ptx.str().str();  
 }
 

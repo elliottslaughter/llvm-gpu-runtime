@@ -134,7 +134,7 @@ void* launchHIPKernel(llvm::Module& m, void** args, size_t n) {
 	std::string LinkedObjectFile = "/tmp/kernel.hip-l.o";
 	std::string BundledObjectFile = "/tmp/kernel.hip-b.o"; 
   std::error_code EC;
-  sys::fs::OpenFlags OpenFlags = sys::fs::F_None;
+  sys::fs::OpenFlags OpenFlags = sys::fs::OF_None;
   std::unique_ptr<ToolOutputFile> FDOut =
       std::make_unique<ToolOutputFile>(ObjectFile, EC, OpenFlags);
   raw_pwrite_stream *fostr = &FDOut->os();

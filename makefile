@@ -1,10 +1,8 @@
 all: test libllvm-gpu.so 
 
-installPrefix=/usr/local/
 nvptx=${CUDA_PATH}/lib64/libnvptxcompiler_static.a
 links:=-lrt -lcurses -ldl -lpthread -lz -lLLVM
-clanginstall=/usr/local/
-incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include -I${clanginstall}/include/
+incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
 opts=-g -fPIC
 flags=${links} ${incs} ${opts} -Wall 
 clang=clang++ 
@@ -43,10 +41,10 @@ gpu.o: gpu.cc *.h
 	${clang} ${opts} ${incs} -c $< -o $@
 
 install: libllvm-gpu.so gpu.h
-	install -d ${installPrefix}/lib
-	install -m 644 libllvm-gpu.so ${installPrefix}/lib
-	install -d ${installPrefix}/include
-	install -m 644 gpu.h ${installPrefix}/include
+	install -d ${prefix}/lib
+	install -m 644 libllvm-gpu.so ${prefix}/lib
+	install -d ${prefix}/include
+	install -m 644 gpu.h ${prefix}/include
 
 .PHONY: clean
 clean:
