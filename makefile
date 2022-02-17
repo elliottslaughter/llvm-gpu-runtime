@@ -1,8 +1,8 @@
 all: test libllvm-gpu.so 
 
 nvptx=${CUDA_PATH}/lib64/libnvptxcompiler_static.a
-links:=-lrt -lcurses -ldl -lpthread -lz -lLLVM
-incs=-I${CUDA_PATH}/include/  -I${CUDA_PATH}/targets/x86_64-linux/include
+links:=-lrt -lncurses -ldl -lpthread -lz $(shell llvm-config --ldflags) $(shell llvm-config --libs)
+incs=-std=c++14 $(shell llvm-config --cflags) -I${ROCM_PATH}/include
 opts=-g -fPIC
 flags=${links} ${incs} ${opts} -Wall 
 clang=clang++ 
